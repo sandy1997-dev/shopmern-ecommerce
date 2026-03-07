@@ -74,13 +74,16 @@ export default function AdminProductForm() {
   const [errors, setErrors] = useState({});
   const [uploading, setUploading] = useState(false);
 
-  // Load existing product if editing
-  useQuery({
+  // Load existing product if editing (React Query v5 — useEffect instead of onSuccess)
+  const { data: editData } = useQuery({
     queryKey: ["product-edit", id],
     queryFn: () => productsAPI.getById(id).then(r => r.data),
     enabled: isEdit,
-    onSuccess: (data) => {
-      const p = data.product;
+  });
+
+  React.useEffect(() => {
+    if (editData?.product) {
+      const p = editData.product;
       setForm({
         name: p.name || "", description: p.description || "",
         shortDescription: p.shortDescription || "", price: p.price || "",
@@ -92,7 +95,7 @@ export default function AdminProductForm() {
       });
       setImages(p.images || []);
     }
-  });
+  }, [editData]);
 
   const saveMutation = useMutation({
     mutationFn: (data) => isEdit ? productsAPI.update(id, data) : productsAPI.create(data),
