@@ -5,11 +5,13 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const dotenv = require("dotenv");
-const path = require("path");
 
 dotenv.config();
 
 const app = express();
+
+// ── Trust Proxy (required for Render deployment) ──
+app.set("trust proxy", 1);
 
 // ── Security Middleware ──
 app.use(helmet());
@@ -17,9 +19,10 @@ app.use(morgan("dev"));
 
 // ── Rate Limiting ──
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   message: "Too many requests from this IP, please try again later.",
+  validate: { xForwardedForHeader: false },
 });
 app.use("/api", limiter);
 
@@ -32,7 +35,6 @@ app.use(
 );
 
 // ── Body Parser ──
-// Raw body needed for Stripe webhooks
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -49,11 +51,7 @@ app.use("/api/upload", require("./routes/upload"));
 
 // ── Health Check ──
 app.get("/api/health", (req, res) => {
-  res.json({
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-  });
+  res.json({ status: "OK", timestamp: new Date().toISOString(), environment: process.env.NODE_ENV });
 });
 
 // ── 404 Handler ──
@@ -64,8 +62,7 @@ app.use((req, res) => {
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
+  res.status(err.statusCode || 500).json({
     message: err.message || "Internal Server Error",
     stack: process.env.NODE_ENV === "production" ? null : err.stack,
   });
@@ -74,10 +71,7 @@ app.use((err, req, res, next) => {
 // ── MongoDB Connection ──
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(process.env.MONGO_URI);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`❌ MongoDB Error: ${error.message}`);
@@ -85,9 +79,7 @@ const connectDB = async () => {
   }
 };
 
-// ── Start Server ──
 const PORT = process.env.PORT || 5000;
-
 connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
