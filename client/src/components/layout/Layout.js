@@ -69,7 +69,7 @@ export default function Layout() {
               <div className="w-8 h-8 bg-gray-900 rounded flex items-center justify-center">
                 <span className="text-white text-xs font-black">S</span>
               </div>
-              ShopMERN
+              Sunrise
             </Link>
 
             {/* Desktop nav */}
@@ -269,7 +269,7 @@ export default function Layout() {
                 <div className="w-7 h-7 bg-white rounded flex items-center justify-center">
                   <span className="text-gray-900 text-xs font-black">S</span>
                 </div>
-                ShopMERN
+                Sunrise
               </div>
               <p className="text-sm leading-relaxed">
                 A full-stack MERN e-commerce platform built with React, Node.js, MongoDB & Stripe.
@@ -295,7 +295,7 @@ export default function Layout() {
             ))}
           </div>
           <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm">© 2024 ShopMERN. Built with MERN Stack + Stripe.</p>
+            <p className="text-sm">© 2024 Sunrise. Built with MERN Stack + Stripe.</p>
             <p className="text-sm">
               By <span className="text-white font-medium">Sandeep Kumar Pati</span>
             </p>

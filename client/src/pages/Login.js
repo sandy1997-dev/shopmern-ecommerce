@@ -36,7 +36,7 @@ export function Login() {
             <div className="w-8 h-8 bg-gray-900 rounded flex items-center justify-center">
               <span className="text-white text-xs font-black">S</span>
             </div>
-            ShopMERN
+            Sunrise
           </Link>
           <h1 className="text-2xl font-black text-gray-900">Welcome back</h1>
           <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
@@ -109,7 +109,7 @@ export function Register() {
     try {
       const { data } = await authAPI.register({ name: form.name, email: form.email, password: form.password });
       login(data.user, data.token);
-      toast.success(`Welcome to ShopMERN, ${data.user.name}!`);
+      toast.success(`Welcome to Sunrise, ${data.user.name}!`);
       navigate("/");
     } catch (err) {
       toast.error(err.message || "Registration failed");
@@ -126,7 +126,7 @@ export function Register() {
             <div className="w-8 h-8 bg-gray-900 rounded flex items-center justify-center">
               <span className="text-white text-xs font-black">S</span>
             </div>
-            ShopMERN
+            Sunrise
           </Link>
           <h1 className="text-2xl font-black text-gray-900">Create account</h1>
           <p className="text-gray-500 text-sm mt-1">Join thousands of shoppers</p>

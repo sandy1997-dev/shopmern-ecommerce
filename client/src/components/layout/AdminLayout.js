@@ -36,7 +36,7 @@ export default function AdminLayout() {
               <div className="w-7 h-7 bg-white rounded flex items-center justify-center">
                 <span className="text-gray-900 text-xs font-black">S</span>
               </div>
-              ShopMERN
+              Sunrise
             </Link>
           )}
           <button
