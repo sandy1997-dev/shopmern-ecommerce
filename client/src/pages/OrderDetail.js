@@ -20,7 +20,6 @@ const STATUS_CONFIG = {
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -38,7 +37,11 @@ export default function OrderDetail() {
     onError: (err) => toast.error(err.message || "Cannot cancel order")
   });
 
-  if (isLoading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"/></div>;
+  if (isLoading) return (
+    <div className="flex justify-center py-20">
+      <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"/>
+    </div>
+  );
 
   const order = data?.order;
   if (!order) return <div className="text-center py-20 text-gray-500">Order not found</div>;
@@ -50,7 +53,6 @@ export default function OrderDetail() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate("/orders")} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
           <FiArrowLeft size={20}/>
@@ -64,7 +66,6 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      {/* Progress tracker — only for non-cancelled */}
       {!["cancelled","refunded"].includes(order.orderStatus) && (
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mb-5">
           <h2 className="font-bold text-gray-900 mb-5">Order Progress</h2>
@@ -99,7 +100,6 @@ export default function OrderDetail() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Items */}
         <div className="lg:col-span-2 space-y-5">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-50">
@@ -120,7 +120,6 @@ export default function OrderDetail() {
             </div>
           </div>
 
-          {/* Shipping address */}
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4"><FiMapPin size={16}/>Shipping Address</h2>
             <div className="text-sm text-gray-600 space-y-1">
@@ -132,7 +131,6 @@ export default function OrderDetail() {
             </div>
           </div>
 
-          {/* Payment info */}
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4"><FiCreditCard size={16}/>Payment</h2>
             <div className="text-sm space-y-1">
@@ -145,20 +143,20 @@ export default function OrderDetail() {
           </div>
         </div>
 
-        {/* Summary + actions */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
             <h2 className="font-bold text-gray-900 mb-4">Order Summary</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>${order.itemsPrice.toFixed(2)}</span></div>
-              <div className="flex justify-between text-gray-600"><span>Shipping</span><span className={order.shippingPrice === 0 ? "text-green-600" : ""}>{order.shippingPrice === 0 ? "FREE" : `$${order.shippingPrice.toFixed(2)}`}</span></div>
+              <div className="flex justify-between text-gray-600"><span>Shipping</span>
+                <span className={order.shippingPrice === 0 ? "text-green-600" : ""}>{order.shippingPrice === 0 ? "FREE" : `$${order.shippingPrice.toFixed(2)}`}</span>
+              </div>
               <div className="flex justify-between text-gray-600"><span>Tax</span><span>${order.taxPrice.toFixed(2)}</span></div>
               {order.discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-${order.discountAmount.toFixed(2)}</span></div>}
               <div className="flex justify-between font-black text-gray-900 text-base pt-2 border-t border-gray-100"><span>Total</span><span>${order.totalPrice.toFixed(2)}</span></div>
             </div>
           </div>
 
-          {/* Status history */}
           {order.statusHistory?.length > 0 && (
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
               <h2 className="font-bold text-gray-900 mb-4">Status History</h2>
@@ -177,7 +175,6 @@ export default function OrderDetail() {
             </div>
           )}
 
-          {/* Actions */}
           <div className="space-y-3">
             {isCancellable && (
               <button onClick={() => { if(window.confirm("Cancel this order?")) cancelMutation.mutate(); }}
