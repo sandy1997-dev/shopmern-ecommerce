@@ -57,7 +57,8 @@ export const ordersAPI = {
   pay: (id, data) => api.put(`/orders/${id}/pay`, data),
   cancel: (id, data) => api.put(`/orders/${id}/cancel`, data),
   // Admin
-  getAll: (params) => api.get("/orders", { params }),
+  getAll: (params) => api.get("/orders/admin/all", { params }),
+  getAll: (params) => api.get("/orders/admin/all", { params }),
   updateStatus: (id, data) => api.put(`/orders/${id}/status`, data),
 };
 
