@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const cloudinary = require("cloudinary").v2;
+const { v2: cloudinary } = require("cloudinary");
 const { protect, adminOnly } = require("../middleware/auth");
 
 cloudinary.config({
@@ -10,20 +10,16 @@ cloudinary.config({
 });
 
 // @route   POST /api/upload
-// @desc    Upload image to Cloudinary (base64)
 // @access  Private/Admin
 router.post("/", protect, adminOnly, async (req, res) => {
   try {
     const { image, folder = "ecommerce/products" } = req.body;
-
     if (!image) return res.status(400).json({ message: "No image provided" });
 
     const result = await cloudinary.uploader.upload(image, {
       folder,
       resource_type: "image",
-      transformation: [
-        { width: 800, height: 800, crop: "limit", quality: "auto" },
-      ],
+      transformation: [{ width: 800, height: 800, crop: "limit", quality: "auto:good" }],
     });
 
     res.json({
@@ -32,12 +28,12 @@ router.post("/", protect, adminOnly, async (req, res) => {
       url: result.secure_url,
     });
   } catch (error) {
+    console.error("Cloudinary upload error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
 // @route   DELETE /api/upload/:publicId
-// @desc    Delete image from Cloudinary
 // @access  Private/Admin
 router.delete("/:publicId", protect, adminOnly, async (req, res) => {
   try {
