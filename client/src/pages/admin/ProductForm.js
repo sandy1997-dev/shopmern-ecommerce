@@ -7,16 +7,6 @@ import { FiUpload, FiX, FiChevronLeft, FiChevronRight, FiAlertCircle, FiLink } f
 
 const CATEGORIES = ["Electronics","Clothing","Books","Home & Garden","Sports","Beauty","Toys","Automotive","Food","Other"];
 
-// ✨ THE TRUE FIX: No more canvas. Just reads the exact, pure file natively. ✨
-function getBase64Safe(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (error) => reject(error);
-  });
-}
-
 function ImageCarousel({ images, onRemove }) {
   const [current, setCurrent] = useState(0);
   if (!images.length) return null;
@@ -125,28 +115,30 @@ export default function AdminProductForm() {
     
     for (const file of files) {
       try {
-        // ✨ Get the exact, uncorrupted base64 string directly from the file
-        const pureBase64Image = await getBase64Safe(file);
+        // ✨ MULTIPART FORM DATA FIX: Send raw file instead of base64
+        const formData = new FormData();
+        formData.append("image", file);
         
-        try {
-          const token = JSON.parse(localStorage.getItem("auth-storage") || "{}").state?.token;
-          const res = await fetch(`${process.env.REACT_APP_API_URL || "/api"}/upload`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ image: pureBase64Image }),
-          });
-          const data = await res.json();
-          if (res.ok && data.url) {
-            setImages(prev => [...prev, { url: data.url, public_id: data.public_id }]);
-            toast.success("Image uploaded!");
-            continue;
-          }
-        } catch { /* fall through */ }
+        const token = JSON.parse(localStorage.getItem("auth-storage") || "{}").state?.token;
+        const res = await fetch(`${process.env.REACT_APP_API_URL || "/api"}/upload`, {
+          method: "POST",
+          headers: { 
+            Authorization: `Bearer ${token}` 
+            // IMPORTANT: Do not set Content-Type manually when using FormData
+          },
+          body: formData,
+        });
         
-        setImages(prev => [...prev, { url: pureBase64Image, public_id: `local_${Date.now()}` }]);
-        toast.success("Image added!");
-      } catch {
-        toast.error(`Failed: ${file.name}`);
+        const data = await res.json();
+        
+        if (res.ok && data.url) {
+          setImages(prev => [...prev, { url: data.url, public_id: data.public_id }]);
+          toast.success("Image uploaded!");
+        } else {
+          toast.error(data.message || `Failed to upload: ${file.name}`);
+        }
+      } catch (error) {
+        toast.error(`Network Error: ${file.name}`);
       }
     }
     setUploading(false);

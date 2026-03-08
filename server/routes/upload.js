@@ -2,32 +2,25 @@ const express = require("express");
 const router = express.Router();
 const { protect, adminOnly } = require("../middleware/auth");
 const cloudinary = require("cloudinary").v2;
+const multer = require("multer");
+
+// Set up Multer to hold the raw file in memory
+const upload = multer({ storage: multer.memoryStorage() });
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // @route   POST /api/upload
-router.post("/", protect, adminOnly, async (req, res) => {
+// Notice the 'upload.single("image")' middleware!
+router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
-    const { image } = req.body;
-    if (!image) return res.status(400).json({ message: "No image provided" });
+    // We now look for req.file, NOT req.body.image
+    if (!req.file) return res.status(400).json({ message: "No image provided" });
 
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
-
-    // 1. Safely extract purely the base64 data, ignoring the frontend prefix
-    let base64Data = image;
-    if (image.includes(";base64,")) {
-      base64Data = image.split(";base64,").pop();
-    }
-    
-    // 2. Fix any missing '+' signs stripped by the network
-    base64Data = base64Data.replace(/ /g, "+");
-
-    // 3. Convert text directly into a raw binary Buffer
-    const imageBuffer = Buffer.from(base64Data, "base64");
-
-    // 4. Stream the raw binary bytes directly to Cloudinary (Bypasses string errors)
+    // Stream the raw binary buffer directly to Cloudinary
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "ecommerce/products",
@@ -35,8 +28,7 @@ router.post("/", protect, adminOnly, async (req, res) => {
       },
       (error, result) => {
         if (error) {
-          console.error("⚠️ Cloudinary Error:", error);
-          // Pass the EXACT error to the frontend so we aren't guessing
+          console.error("🔥 CLOUDINARY ERROR:", error);
           return res.status(500).json({ message: "Cloudinary Error: " + error.message });
         }
         
@@ -48,25 +40,19 @@ router.post("/", protect, adminOnly, async (req, res) => {
       }
     );
 
-    // Execute the upload stream
-    uploadStream.end(imageBuffer);
+    // Pass the raw file buffer into the stream
+    uploadStream.end(req.file.buffer);
 
   } catch (error) {
-    console.error("🔥 FATAL UPLOAD ERROR:", error);
-    res.status(500).json({ message: "Server crash: " + error.message });
+    console.error("🔥 SERVER ERROR:", error);
+    res.status(500).json({ message: "Server crash during upload." });
   }
 });
 
-// @route   DELETE /api/upload/:publicId
 router.delete("/:publicId", protect, adminOnly, async (req, res) => {
   try {
     const publicId = decodeURIComponent(req.params.publicId);
     if (!publicId.startsWith("local_")) {
-      cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-      });
       await cloudinary.uploader.destroy(publicId);
     }
     res.json({ success: true });
