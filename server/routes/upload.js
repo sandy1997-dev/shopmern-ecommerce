@@ -57,7 +57,8 @@ router.delete("/:publicId", protect, adminOnly, async (req, res) => {
       await cloudinary.uploader.destroy(publicId);
     }
     res.json({ success: true });
-  } catch (error) {
+ } catch (error) {
+    console.error("🔥 UPLOAD CRASH ERROR:", error); // <-- Add this line
     res.status(500).json({ message: error.message });
   }
 });
