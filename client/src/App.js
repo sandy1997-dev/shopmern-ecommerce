@@ -9,6 +9,9 @@ import Layout from "./components/layout/Layout";
 import AdminLayout from "./components/layout/AdminLayout";
 import LoadingSpinner from "./components/common/LoadingSpinner";
 
+// ✨ IMPORT THE AUTO LOGOUT COMPONENT ✨
+import AutoLogout from "./components/AutoLogout"; 
+
 const Home           = lazy(() => import("./pages/Home"));
 const Products       = lazy(() => import("./pages/Products"));
 const ProductDetail  = lazy(() => import("./pages/ProductDetail"));
@@ -56,6 +59,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <Elements stripe={stripePromise}>
         <BrowserRouter>
+          {/* ✨ DROP IT HERE SO IT LISTENS ON EVERY PAGE ✨ */}
+          <AutoLogout /> 
+          
           <Toaster position="top-right" toastOptions={{ duration: 3000, style: { background: "#1a1a1a", color: "#f0ede8", border: "1px solid #2a2a2a", borderRadius: "8px", fontSize: "0.875rem" } }}/>
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>

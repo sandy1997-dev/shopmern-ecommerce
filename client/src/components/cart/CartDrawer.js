@@ -1,12 +1,20 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore } from "../../store";
 import { FiX, FiPlus, FiMinus, FiTrash2, FiShoppingBag } from "react-icons/fi";
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, clearCart } = useCartStore();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✨ THE FIX: Instantly close the drawer ANY time the page URL changes
+  useEffect(() => {
+    if (isOpen) {
+      closeCart();
+    }
+  }, [location.pathname, closeCart, isOpen]);
 
   const subtotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
   const shipping = subtotal > 50 ? 0 : 9.99;

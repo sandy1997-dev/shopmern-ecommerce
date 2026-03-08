@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { body, validationResult } = require("express-validator");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken"); // ✨ ADDED THIS
 const User = require("../models/User");
 const { protect } = require("../middleware/auth");
 
@@ -9,7 +10,10 @@ const { protect } = require("../middleware/auth");
 const otpStore = new Map(); // email -> { otp, expiry }
 
 const sendTokenResponse = (user, statusCode, res) => {
-  const token = user.getJwtToken();
+  // ✨ THE FIX: Issue a 7-day token so active users NEVER get kicked out by the server.
+  // We will handle the 15-minute inactivity timeout on the frontend instead!
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  
   res.status(statusCode).json({
     success: true, token,
     user: { _id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },

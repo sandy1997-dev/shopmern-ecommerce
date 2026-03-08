@@ -18,13 +18,14 @@ router.get("/dashboard", async (req, res) => {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Total counts
+    // Total counts (✨ FIX: Removed strict isPaid filter so test orders show up!)
     const [totalOrders, totalProducts, totalUsers, totalRevenue] = await Promise.all([
       Order.countDocuments(),
       Product.countDocuments({ isActive: true }),
       User.countDocuments({ role: "user" }),
       Order.aggregate([
-        { $match: { isPaid: true } },
+        // Assuming we want to see gross volume, including pending test orders
+        { $match: { orderStatus: { $ne: "cancelled" } } }, 
         { $group: { _id: null, total: { $sum: "$totalPrice" } } },
       ]),
     ]);
@@ -33,14 +34,14 @@ router.get("/dashboard", async (req, res) => {
     const [monthOrders, monthRevenue] = await Promise.all([
       Order.countDocuments({ createdAt: { $gte: startOfMonth } }),
       Order.aggregate([
-        { $match: { isPaid: true, createdAt: { $gte: startOfMonth } } },
+        { $match: { orderStatus: { $ne: "cancelled" }, createdAt: { $gte: startOfMonth } } },
         { $group: { _id: null, total: { $sum: "$totalPrice" } } },
       ]),
     ]);
 
     // Last month revenue for comparison
     const lastMonthRevenue = await Order.aggregate([
-      { $match: { isPaid: true, createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+      { $match: { orderStatus: { $ne: "cancelled" }, createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
       { $group: { _id: null, total: { $sum: "$totalPrice" } } },
     ]);
 
@@ -48,7 +49,7 @@ router.get("/dashboard", async (req, res) => {
     const revenueByDay = await Order.aggregate([
       {
         $match: {
-          isPaid: true,
+          orderStatus: { $ne: "cancelled" },
           createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
         },
       },
@@ -87,7 +88,7 @@ router.get("/dashboard", async (req, res) => {
 
     // Sales by category
     const salesByCategory = await Order.aggregate([
-      { $match: { isPaid: true } },
+      { $match: { orderStatus: { $ne: "cancelled" } } },
       { $unwind: "$items" },
       {
         $lookup: {
@@ -110,9 +111,14 @@ router.get("/dashboard", async (req, res) => {
 
     const thisMonthRev = monthRevenue[0]?.total || 0;
     const lastMonthRev = lastMonthRevenue[0]?.total || 0;
-    const revenueGrowth = lastMonthRev
-      ? (((thisMonthRev - lastMonthRev) / lastMonthRev) * 100).toFixed(1)
-      : 100;
+    
+    // ✨ FIX: Prevent it from showing 100% growth if both months are $0
+    let revenueGrowth = 0;
+    if (lastMonthRev > 0) {
+      revenueGrowth = (((thisMonthRev - lastMonthRev) / lastMonthRev) * 100).toFixed(1);
+    } else if (thisMonthRev > 0) {
+      revenueGrowth = 100;
+    }
 
     res.json({
       success: true,
@@ -135,6 +141,7 @@ router.get("/dashboard", async (req, res) => {
       recentOrders,
     });
   } catch (error) {
+    console.error("Dashboard Error:", error);
     res.status(500).json({ message: error.message });
   }
 });
