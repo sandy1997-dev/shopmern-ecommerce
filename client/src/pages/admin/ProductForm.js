@@ -7,13 +7,29 @@ import { FiUpload, FiX, FiChevronLeft, FiChevronRight, FiAlertCircle, FiLink } f
 
 const CATEGORIES = ["Electronics","Clothing","Books","Home & Garden","Sports","Beauty","Toys","Automotive","Food","Other"];
 
-// ✨ THE FIX: Safely convert file to Base64 without destroying data via canvas
-function convertToBase64(file) {
+// ✨ THE PERFECT FIX: Compresses to save network payload, but KEEPS PNGs transparent! ✨
+function compressImage(file, maxWidth = 600, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        
+        // Output exactly what was put in (PNG stays PNG, JPEG stays JPEG)
+        const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+        resolve(canvas.toDataURL(outputType, quality));
+      };
+      img.src = e.target.result;
+    };
     reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (error) => reject(error);
   });
 }
 
@@ -21,7 +37,6 @@ function ImageCarousel({ images, onRemove }) {
   const [current, setCurrent] = useState(0);
   if (!images.length) return null;
 
-  // Ensure valid src
   const getSrc = (img) => {
     const url = img.url || img.preview || "";
     if (url.startsWith("http") || url.startsWith("data:image")) return url;
@@ -126,16 +141,14 @@ export default function AdminProductForm() {
     
     for (const file of files) {
       try {
-        // ✨ THE FIX: Use safe converter here
-        const safeBase64Image = await convertToBase64(file);
+        const compressedImage = await compressImage(file, 600, 0.7);
         
-        // Try backend upload
         try {
           const token = JSON.parse(localStorage.getItem("auth-storage") || "{}").state?.token;
           const res = await fetch(`${process.env.REACT_APP_API_URL || "/api"}/upload`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ image: safeBase64Image }),
+            body: JSON.stringify({ image: compressedImage }),
           });
           const data = await res.json();
           if (res.ok && data.url) {
@@ -143,10 +156,9 @@ export default function AdminProductForm() {
             toast.success("Image uploaded!");
             continue;
           }
-        } catch { /* fall through to local */ }
+        } catch { /* fall through */ }
         
-        // Local fallback
-        setImages(prev => [...prev, { url: safeBase64Image, public_id: `local_${Date.now()}` }]);
+        setImages(prev => [...prev, { url: compressedImage, public_id: `local_${Date.now()}` }]);
         toast.success("Image added!");
       } catch {
         toast.error(`Failed: ${file.name}`);
@@ -219,8 +231,6 @@ export default function AdminProductForm() {
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* Images panel */}
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
               <h2 className="font-bold text-gray-900 mb-4">
@@ -262,7 +272,6 @@ export default function AdminProductForm() {
 
               {errors.images && <p className="flex items-center gap-1 text-red-500 text-xs mt-2"><FiAlertCircle size={12}/>{errors.images}</p>}
 
-              {/* Sample images */}
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-400 mb-2">Quick demo images:</p>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -277,7 +286,6 @@ export default function AdminProductForm() {
               </div>
             </div>
 
-            {/* Status toggles */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
               <h2 className="font-bold text-gray-900">Status</h2>
               {[
@@ -295,7 +303,6 @@ export default function AdminProductForm() {
             </div>
           </div>
 
-          {/* Details */}
           <div className="lg:col-span-2 space-y-5">
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
               <h2 className="font-bold text-gray-900 mb-5">Basic Information</h2>
