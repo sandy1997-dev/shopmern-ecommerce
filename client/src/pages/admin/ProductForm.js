@@ -7,29 +7,13 @@ import { FiUpload, FiX, FiChevronLeft, FiChevronRight, FiAlertCircle, FiLink } f
 
 const CATEGORIES = ["Electronics","Clothing","Books","Home & Garden","Sports","Beauty","Toys","Automotive","Food","Other"];
 
-// ✨ THE PERFECT FIX: Compresses to save network payload, but KEEPS PNGs transparent! ✨
-function compressImage(file, maxWidth = 600, quality = 0.7) {
+// ✨ THE TRUE FIX: No more canvas. Just reads the exact, pure file natively. ✨
+function getBase64Safe(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        
-        // Output exactly what was put in (PNG stays PNG, JPEG stays JPEG)
-        const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
-        resolve(canvas.toDataURL(outputType, quality));
-      };
-      img.src = e.target.result;
-    };
     reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
   });
 }
 
@@ -141,14 +125,15 @@ export default function AdminProductForm() {
     
     for (const file of files) {
       try {
-        const compressedImage = await compressImage(file, 600, 0.7);
+        // ✨ Get the exact, uncorrupted base64 string directly from the file
+        const pureBase64Image = await getBase64Safe(file);
         
         try {
           const token = JSON.parse(localStorage.getItem("auth-storage") || "{}").state?.token;
           const res = await fetch(`${process.env.REACT_APP_API_URL || "/api"}/upload`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ image: compressedImage }),
+            body: JSON.stringify({ image: pureBase64Image }),
           });
           const data = await res.json();
           if (res.ok && data.url) {
@@ -158,7 +143,7 @@ export default function AdminProductForm() {
           }
         } catch { /* fall through */ }
         
-        setImages(prev => [...prev, { url: compressedImage, public_id: `local_${Date.now()}` }]);
+        setImages(prev => [...prev, { url: pureBase64Image, public_id: `local_${Date.now()}` }]);
         toast.success("Image added!");
       } catch {
         toast.error(`Failed: ${file.name}`);
@@ -248,7 +233,7 @@ export default function AdminProductForm() {
                       ? <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"/>
                       : <><FiUpload size={20} className="text-gray-400"/>
                           <span className="text-sm font-medium text-gray-600">Upload your image</span>
-                          <span className="text-xs text-gray-400">Auto-compressed · JPG, PNG</span></>}
+                          <span className="text-xs text-gray-400">Pure file upload · JPG, PNG</span></>}
                   </button>
                   <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect}/>
 
