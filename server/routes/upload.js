@@ -1,45 +1,62 @@
 const express = require("express");
 const router = express.Router();
-const { v2: cloudinary } = require("cloudinary");
 const { protect, adminOnly } = require("../middleware/auth");
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
 // @route   POST /api/upload
+// @desc    Store image - tries Cloudinary first, returns base64 as fallback
 // @access  Private/Admin
 router.post("/", protect, adminOnly, async (req, res) => {
   try {
-    const { image, folder = "ecommerce/products" } = req.body;
+    const { image } = req.body;
     if (!image) return res.status(400).json({ message: "No image provided" });
 
-    const result = await cloudinary.uploader.upload(image, {
-      folder,
-      resource_type: "image",
-      transformation: [{ width: 800, height: 800, crop: "limit", quality: "auto:good" }],
-    });
+    // Try Cloudinary v2
+    try {
+      const cloudinary = require("cloudinary").v2;
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
 
-    res.json({
-      success: true,
-      public_id: result.public_id,
-      url: result.secure_url,
-    });
+      const result = await cloudinary.uploader.upload(image, {
+        folder: "ecommerce/products",
+        resource_type: "image",
+        transformation: [{ width: 800, height: 800, crop: "limit", quality: "auto:good" }],
+      });
+
+      return res.json({
+        success: true,
+        public_id: result.public_id,
+        url: result.secure_url,
+      });
+    } catch (cloudErr) {
+      console.log("Cloudinary failed, using base64:", cloudErr.message);
+      // Return the base64 image directly — stored in MongoDB
+      return res.json({
+        success: true,
+        public_id: `local_${Date.now()}`,
+        url: image, // base64 string stored as URL
+      });
+    }
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// @route   DELETE /api/upload/:publicId
-// @access  Private/Admin
 router.delete("/:publicId", protect, adminOnly, async (req, res) => {
   try {
     const publicId = decodeURIComponent(req.params.publicId);
-    await cloudinary.uploader.destroy(publicId);
-    res.json({ success: true, message: "Image deleted" });
+    if (!publicId.startsWith("local_")) {
+      const cloudinary = require("cloudinary").v2;
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+      await cloudinary.uploader.destroy(publicId);
+    }
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
