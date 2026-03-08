@@ -7,33 +7,13 @@ import { FiUpload, FiX, FiChevronLeft, FiChevronRight, FiAlertCircle, FiLink } f
 
 const CATEGORIES = ["Electronics","Clothing","Books","Home & Garden","Sports","Beauty","Toys","Automotive","Food","Other"];
 
-// Compress image to max width, return full data URL
-// Compress image to max width, return full data URL
-function compressImage(file, maxWidth = 600, quality = 0.7) {
+// ✨ THE FIX: Safely convert file to Base64 without destroying data via canvas
+function convertToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        
-        // ✨ THIS IS THE MISSING FIX ✨
-        if (file.type === "image/png") {
-          resolve(canvas.toDataURL("image/png", quality));
-        } else {
-          resolve(canvas.toDataURL("image/jpeg", quality));
-        }
-      };
-      img.src = e.target.result;
-    };
     reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
   });
 }
 
@@ -143,16 +123,19 @@ export default function AdminProductForm() {
     const files = Array.from(e.target.files);
     if (images.length + files.length > 6) { toast.error("Max 6 images"); return; }
     setUploading(true);
+    
     for (const file of files) {
       try {
-        const compressed = await compressImage(file, 600, 0.7);
+        // ✨ THE FIX: Use safe converter here
+        const safeBase64Image = await convertToBase64(file);
+        
         // Try backend upload
         try {
           const token = JSON.parse(localStorage.getItem("auth-storage") || "{}").state?.token;
           const res = await fetch(`${process.env.REACT_APP_API_URL || "/api"}/upload`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ image: compressed }),
+            body: JSON.stringify({ image: safeBase64Image }),
           });
           const data = await res.json();
           if (res.ok && data.url) {
@@ -161,8 +144,9 @@ export default function AdminProductForm() {
             continue;
           }
         } catch { /* fall through to local */ }
-        // Local fallback — store compressed dataURL directly
-        setImages(prev => [...prev, { url: compressed, public_id: `local_${Date.now()}` }]);
+        
+        // Local fallback
+        setImages(prev => [...prev, { url: safeBase64Image, public_id: `local_${Date.now()}` }]);
         toast.success("Image added!");
       } catch {
         toast.error(`Failed: ${file.name}`);
