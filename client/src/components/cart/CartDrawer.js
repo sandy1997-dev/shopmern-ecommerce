@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore } from "../../store";
@@ -8,13 +8,17 @@ export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, clearCart } = useCartStore();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // ✨ THE ULTIMATE FIX: Create a memory of the current page URL
+  const currentPath = useRef(location.pathname);
 
-  // ✨ THE FIX: Instantly close the drawer ANY time the page URL changes
   useEffect(() => {
-    if (isOpen) {
+    // Only trigger the close function IF the URL actually changed to a new page
+    if (location.pathname !== currentPath.current) {
       closeCart();
+      currentPath.current = location.pathname; // Update the memory to the new page
     }
-  }, [location.pathname, closeCart, isOpen]);
+  }, [location.pathname, closeCart]);
 
   const subtotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
   const shipping = subtotal > 50 ? 0 : 9.99;
